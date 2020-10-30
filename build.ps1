@@ -1,3 +1,4 @@
+#requires -Module @{ ModuleName = "ModuleBuilder"; ModuleVersion = "2.0" }
 using namespace System.Windows.Automation
 using namespace System.Windows.Automation.Text
 $ErrorActionPreference = "STOP"
@@ -6,7 +7,8 @@ Add-Type -Path $PSScriptRoot\Source\lib\*.dll
 # -- a lot of commands have weird names because they're being generated based on pattern names
 # -- eg: Invoke-Toggle.Toggle and Invoke-Invoke.Invoke
 
-Push-Location $PSScriptRoot\Source\Generated
+New-Item -Type Directory $PSScriptRoot\Source\Public\Generated -Force -ErrorAction Stop
+Push-Location $PSScriptRoot\Source\Public\Generated -ErrorAction Stop
 Remove-Item *.ps1
 
 $patterns = Get-Type -Assembly UIAComWrapper -Base System.Windows.Automation.BasePattern
@@ -174,7 +176,7 @@ $Event = $patterns.ForEach{
 
 New-Item -Type File "01 - Variables.ps1" -Value @"
 `$UIAEvents = @(
-    $($Event -join $newline)
+    $($Event -join "`n    ")
 )
 "@
 
@@ -196,7 +198,7 @@ function Add-UIHandler {
         [TreeScope]`$Scope = "Element"
     )
 
-    `$EventId = `$UIAEvents.Where{ `$_.ProgrammaticName -match `$Event }
+    `$EventId = `$UIAEvents.Where{ `$_.ProgrammaticName -match `$Event }[0]
 
     [Automation]::AddAutomationEventHandler(`$EventId, `$InputObject, `$Scope, `$Handler)
 }

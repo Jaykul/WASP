@@ -3,7 +3,7 @@ using namespace System.Windows.Automation.Text
 
 $patterns = Get-Type -Assembly UIAComWrapper -Base System.Windows.Automation.BasePattern
 
-Add-Type -Language CSharp -ReferencedAssemblies UIAComWrapper -TypeDefinition @"
+Add-Type -ReferencedAssemblies UIAComWrapper, System.Text.RegularExpressions, System.Management.Automation, mscorlib -TypeDefinition @"
 using System;
 using System.ComponentModel;
 using System.Management.Automation;
