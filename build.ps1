@@ -1,6 +1,8 @@
 #requires -Module @{ ModuleName = "ModuleBuilder"; ModuleVersion = "2.0" }
 using namespace System.Windows.Automation
 using namespace System.Windows.Automation.Text
+[CmdletBinding()]
+param()
 $ErrorActionPreference = "STOP"
 # WASP 3.0 is based on UIAutomation 3 using UIAComWrapper https://github.com/TestStack/UIAComWrapper
 Add-Type -Path $PSScriptRoot\Source\lib\*.dll
@@ -8,6 +10,7 @@ Add-Type -Path $PSScriptRoot\Source\lib\*.dll
 # -- eg: Invoke-Toggle.Toggle and Invoke-Invoke.Invoke
 
 New-Item -Type Directory $PSScriptRoot\Source\Public\Generated -Force -ErrorAction Stop
+New-Item -Type Directory $PSScriptRoot\Source\Private\Generated -Force -ErrorAction Stop
 Push-Location $PSScriptRoot\Source\Public\Generated -ErrorAction Stop
 Remove-Item *.ps1
 
@@ -19,13 +22,13 @@ $patterns = Get-Type -Assembly UIAComWrapper -Base System.Windows.Automation.Bas
 ## TODO: Figure out why Notepad doesn't support SetValue
 ## TODO: Figure out where the menus support went
 foreach ($pattern in $patterns) {
-    $PatternFullName = $pattern.FullName
     $PatternName = $Pattern.Name -Replace "Pattern", "."
+    Write-Information "Generating $PatternName"
+
+    $PatternFullName = $pattern.FullName
     $newline = "`n        "
-
-
-
     $FunctionName = "ConvertTo-$($Pattern.Name)"
+    Write-Information "    $FunctionName"
     New-Item -Type File -Name "$FunctionName.ps1" -Value @"
 function $FunctionName {
     [CmdletBinding()]
@@ -57,12 +60,12 @@ function $FunctionName {
 #         [Parameter(Mandatory, ValueFromPipeline)]
 #         [Alias('Element','AutomationElement')]
 #         [AutomationElement]`$InputObject,
-
+#
 #         [AutomationEventHandler]`$Handler,
-
+#
 #         [TreeScope]`$Scope = "Element"
 #     )
-
+#
 #     [Automation]::AddAutomationEventHandler(([$($pattern.FullName)]::$($_.Name)), `$InputObject, `$Scope, `$Handler)
 # }
 # "@
@@ -87,8 +90,11 @@ function $FunctionName {
 #     }
 
 
+    Write-Information "    Generating Property Functions"
     $pattern.GetProperties().Where{ $_.DeclaringType -eq $_.ReflectedType -and $_.Name -notmatch "Cached|Current" }.ForEach{
         $FunctionName = "Get-$PatternName$($_.Name)".Trim('.')
+        Write-Information "        $FunctionName"
+
         New-Item -Type File "$FunctionName.ps1" -Value @"
 function $FunctionName {
     [CmdletBinding()]
@@ -107,9 +113,11 @@ function $FunctionName {
 "@
     }
 
+    Write-Information "    Generating Field Functions"
     ## So far this seems to be restricted to Text (DocumentRange) elements
     $pattern.GetFields().Where{ $_.FieldType.Name -like "*TextAttribute" }.ForEach{
         $FunctionName = "Get-Text$($_.Name -replace 'Attribute')"
+        Write-Information "        $FunctionName"
         New-Item -Type File "$FunctionName.ps1" -Value @"
 function $FunctionName {
     [CmdletBinding()]
@@ -125,8 +133,12 @@ function $FunctionName {
 "@
     }
 
+    Write-Information "    Generating Method Functions"
+
     $pattern.GetMethods().Where{ $_.DeclaringType -eq $_.ReflectedType -and !$_.IsSpecialName }.ForEach{
         $Position = 1
+        $FunctionName = "Invoke-$PatternName$($_.Name)"
+        Write-Information "        $FunctionName"
 
         $Parameters = @("$newline[Parameter(ValueFromPipeline)]" +
             "$newline[Alias('Parent', 'Element', 'Root', 'AutomationElement')]" +
@@ -138,7 +150,6 @@ function $FunctionName {
         @($_.GetParameters().ForEach{ "[Parameter(Position=$($Position; $Position++))]$newline[$($_.ParameterType.FullName)]`$$($_.Name)" })
         $Parameters = $Parameters -Join ",$newline"
         $ParameterValues = '$' + ($_.GetParameters().Name -Join ', $')
-        $FunctionName = "Invoke-$PatternName$($_.Name)"
         New-Item -Type File "$FunctionName.ps1" -Value @"
 function $FunctionName {
     [CmdletBinding()]
@@ -174,12 +185,14 @@ $Event = $patterns.ForEach{
     }
 }
 
-New-Item -Type File "01 - Variables.ps1" -Value @"
+Write-Information "    Generating Variable File"
+New-Item -Type File "$PSScriptRoot\Source\Private\Generated\01 - Variables.ps1" -Value @"
 `$UIAEvents = @(
     $($Event -join "`n    ")
 )
 "@
 
+Write-Information "    Generating Add-UIHandler File"
 New-Item -Type File "Add-UIHandler.ps1" -Value @"
 function Add-UIHandler {
     [CmdletBinding()]
@@ -205,6 +218,7 @@ function Add-UIHandler {
 "@
 
 
+Write-Information "    Generating Remove-UIHandler File"
 New-Item -Type File "Remove-UIHandler.ps1" -Value @"
 function Remove-UIHandler {
     [CmdletBinding()]
@@ -229,13 +243,16 @@ function Remove-UIHandler {
 }
 "@
 
-$FalseCondition = [Condition]::FalseCondition
-$TrueCondition = [Condition]::TrueCondition
-$AutomationProperties = [System.Windows.Automation.AutomationElement+AutomationElementInformation].GetProperties()
+
+# $FalseCondition = [Condition]::FalseCondition
+# $TrueCondition = [Condition]::TrueCondition
+# $AutomationProperties = [System.Windows.Automation.AutomationElement+AutomationElementInformation].GetProperties()
 
 # Set-Alias Invoke-UIElement Invoke-Invoke.Invoke
-Pop-Location
+Write-Information "Build Module"
+Set-Location $PSScriptRoot
 Build-Module
+Pop-Location
 
 #   [Cmdlet(VerbsCommon.Add, "UIAHandler")]
 #   public class AddUIAHandlerCommand : PSCmdlet

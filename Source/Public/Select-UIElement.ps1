@@ -17,6 +17,19 @@ function Select-UIElement {
 
         [Parameter(ParameterSetName = "FromParent", Position = "1")]
         [Alias("Type", "Ct")]
+        [ArgumentCompleter({
+            param($command, $param, $word, $ast)
+            $Word = "$Word".Trim('"'' ')
+            [System.Windows.Automation.ControlType].GetFields( 'Static,Public' ).Where({$_.Name -like "${Word}*"}).ForEach({
+                try {
+                    $Value = $_.GetValue($null)
+                    $Tooltip = $Value.ProgrammaticName + $(if ($Value.LocalizedControlType) { " ($($Value.LocalizedControlType))" })
+                } finally {
+                    # The actual things we output are always CompletionResults:
+                    [System.Management.Automation.CompletionResult]::new($_.Name, $_.Name, 'ParameterValue', $Tooltip)
+                }
+            })
+        })]
         [System.Windows.Automation.ControlType]
         [StaticField(([System.Windows.Automation.ControlType]))]$ControlType,
 
@@ -40,6 +53,9 @@ function Select-UIElement {
         [switch]$Recurse,
 
         [switch]$Bare,
+
+        # An easy way to return just the first element, because that's usually all we want
+        [switch]$First,
 
         [Parameter(ParameterSetName = "FromParent")]
         #[Alias("Pv")]
@@ -238,10 +254,16 @@ function Select-UIElement {
                     Write-Verbose "============= CONDITIONS"
                 }
 
-                if ($filters.Count -gt 0) {
-                    $Element = $Parent.FindAll( $search, $condition ) | Where-Object { $item = $_; foreach ($f in $filters) {
-                            $item = $item | where $f
-                        }; $item }
+                if ($First -and $filters.Count -eq 0) {
+                    $Element = $Parent.FindFirst( $search, $condition )
+                } elseif ($filters.Count -gt 0) {
+                    $Element = $Parent.FindAll( $search, $condition ).Where{
+                        $item = $_
+                        foreach ($f in $filters) {
+                            $item = $item | Where-Object $f
+                        }
+                        $item
+                    }
                 } else {
                     $Element = $Parent.FindAll( $search, $condition )
                 }
@@ -250,17 +272,21 @@ function Select-UIElement {
 
         Write-Verbose "Element Count: $(@($Element).Count)"
         if ($Element) {
+            if ($First) {
+                $Element = @($Element)[0]
+            }
+
             foreach ($el in $Element) {
                 if ($Bare) {
                     Write-Output $el
                 } else {
                     $e = New-Object PSObject $el
-                    foreach ($prop in $e.GetSupportedProperties() | sort ProgrammaticName) {
+                    foreach ($prop in $e.GetSupportedProperties() | Sort-Object ProgrammaticName) {
                         ## TODO: make sure all these show up: [System.Windows.Automation.AutomationElement] | gm -sta -type Property
                         $propName = [System.Windows.Automation.Automation]::PropertyName($prop)
                         Add-Member -InputObject $e -Type ScriptProperty -Name $propName -Value ([ScriptBlock]::Create( "`$this.GetCurrentPropertyValue( [System.Windows.Automation.AutomationProperty]::LookupById( $($prop.Id) ))" )) -EA 0
                     }
-                    foreach ($patt in $e.GetSupportedPatterns() | sort ProgrammaticName) {
+                    foreach ($patt in $e.GetSupportedPatterns() | Sort-Object ProgrammaticName) {
                         Add-Member -InputObject $e -Type ScriptProperty -Name ($patt.ProgrammaticName.Replace("PatternIdentifiers.Pattern", "") + "Pattern") -Value ([ScriptBlock]::Create( "`$this.GetCurrentPattern( [System.Windows.Automation.AutomationPattern]::LookupById( '$($patt.Id)' ) )" )) -EA 0
                     }
                     Write-Output $e
