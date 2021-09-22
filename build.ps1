@@ -12,7 +12,7 @@ Add-Type -Path $PSScriptRoot\Source\lib\*.dll
 New-Item -Type Directory $PSScriptRoot\Source\Public\Generated -Force -ErrorAction Stop
 New-Item -Type Directory $PSScriptRoot\Source\Private\Generated -Force -ErrorAction Stop
 Push-Location $PSScriptRoot\Source\Public\Generated -ErrorAction Stop
-Remove-Item *.ps1
+Remove-Item -Verbose *.ps1
 
 $patterns = Get-Type -Assembly UIAComWrapper -Base System.Windows.Automation.BasePattern
 
@@ -29,7 +29,7 @@ foreach ($pattern in $patterns) {
     $newline = "`n        "
     $FunctionName = "ConvertTo-$($Pattern.Name)"
     Write-Information "    $FunctionName"
-    New-Item -Type File -Name "$FunctionName.ps1" -Value @"
+    New-Item -Type File -Name "$FunctionName.ps1" -Force -Value @"
 function $FunctionName {
     [CmdletBinding()]
     param(
@@ -95,7 +95,7 @@ function $FunctionName {
         $FunctionName = "Get-$PatternName$($_.Name)".Trim('.')
         Write-Information "        $FunctionName"
 
-        New-Item -Type File "$FunctionName.ps1" -Value @"
+        New-Item -Type File "$FunctionName.ps1" -Force -Value @"
 function $FunctionName {
     [CmdletBinding()]
     param(
@@ -118,7 +118,7 @@ function $FunctionName {
     $pattern.GetFields().Where{ $_.FieldType.Name -like "*TextAttribute" }.ForEach{
         $FunctionName = "Get-Text$($_.Name -replace 'Attribute')"
         Write-Information "        $FunctionName"
-        New-Item -Type File "$FunctionName.ps1" -Value @"
+        New-Item -Type File -Force "$FunctionName.ps1" -Value @"
 function $FunctionName {
     [CmdletBinding()]
     param(
@@ -150,7 +150,7 @@ function $FunctionName {
         @($_.GetParameters().ForEach{ "[Parameter(Position=$($Position; $Position++))]$newline[$($_.ParameterType.FullName)]`$$($_.Name)" })
         $Parameters = $Parameters -Join ",$newline"
         $ParameterValues = '$' + ($_.GetParameters().Name -Join ', $')
-        New-Item -Type File "$FunctionName.ps1" -Value @"
+        New-Item -Type File -Force "$FunctionName.ps1" -Value @"
 function $FunctionName {
     [CmdletBinding()]
     param(
@@ -186,7 +186,7 @@ $Event = $patterns.ForEach{
 }
 
 Write-Information "    Generating Variable File"
-New-Item -Type File "$PSScriptRoot\Source\Private\Generated\01 - Variables.ps1" -Value @"
+New-Item -Type File -Force "$PSScriptRoot\Source\Private\Generated\01 - Variables.ps1" -Value @"
 `$UIAEvents = @(
     $($Event -join "`n    ")
 )
@@ -289,3 +289,10 @@ Pop-Location
 #         base.ProcessRecord();
 #      }
 #   }
+
+Write-host "Deploy our generated files to the version folder";
+Get-ChildItem -Path "${pwd}/Source" | 
+    forEach { 
+        Copy-Item -Path $_ -Recurse -Destination "${pwd}/3.0.0" -Verbose -Force 
+    }
+Write-host "Finished."
