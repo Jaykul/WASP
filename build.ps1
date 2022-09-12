@@ -187,7 +187,7 @@ $Event = $patterns.ForEach{
 }
 
 Write-Information "    Generating Variable File"
-New-Item -Type File "$PSScriptRoot\Source\Private\Generated\01 - Variables.ps1" -Value @"
+New-Item -Type File "$PSScriptRoot\Source\Private\Generated\01 - Variables.ps1" -Force -Value @"
 `$UIAEvents = @(
     $($Event -join "`n    ")
 )
