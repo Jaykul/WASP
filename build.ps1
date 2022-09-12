@@ -50,6 +50,8 @@ function $FunctionName {
 }
 "@
 
+# import Reflection module unless already installed
+Import-Module "Reflection" -ErrorAction Stop
 
 #     $pattern.GetFields().Where{ $_.FieldType -eq [AutomationEvent] }.ForEach{
 #         $FunctionName = "Add-$($_.Name -replace "Event$")Handler"
