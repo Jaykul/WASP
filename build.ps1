@@ -1,9 +1,10 @@
-#requires -Module @{ ModuleName = "ModuleBuilder"; ModuleVersion = "2.0" }
+#requires -Modules @{ ModuleName = "ModuleBuilder"; ModuleVersion = "2.0"; }
 using namespace System.Windows.Automation
 using namespace System.Windows.Automation.Text
 [CmdletBinding()]
 param()
 $ErrorActionPreference = "STOP"
+
 # WASP 3.0 is based on UIAutomation 3 using UIAComWrapper https://github.com/TestStack/UIAComWrapper
 Add-Type -Path $PSScriptRoot\Source\lib\*.dll
 # -- a lot of commands have weird names because they're being generated based on pattern names
@@ -49,6 +50,8 @@ function $FunctionName {
 }
 "@
 
+# import Reflection module unless already installed
+Import-Module "Reflection" -ErrorAction Stop
 
 #     $pattern.GetFields().Where{ $_.FieldType -eq [AutomationEvent] }.ForEach{
 #         $FunctionName = "Add-$($_.Name -replace "Event$")Handler"
@@ -186,7 +189,7 @@ $Event = $patterns.ForEach{
 }
 
 Write-Information "    Generating Variable File"
-New-Item -Type File "$PSScriptRoot\Source\Private\Generated\01 - Variables.ps1" -Value @"
+New-Item -Type File "$PSScriptRoot\Source\Private\Generated\01 - Variables.ps1" -Force -Value @"
 `$UIAEvents = @(
     $($Event -join "`n    ")
 )
