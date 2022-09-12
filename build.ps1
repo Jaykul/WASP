@@ -1,9 +1,10 @@
-#requires -Module @{ ModuleName = "ModuleBuilder"; ModuleVersion = "2.0" }
+#requires -Modules @{ ModuleName = "ModuleBuilder"; ModuleVersion = "2.0"; }
 using namespace System.Windows.Automation
 using namespace System.Windows.Automation.Text
 [CmdletBinding()]
 param()
 $ErrorActionPreference = "STOP"
+
 # WASP 3.0 is based on UIAutomation 3 using UIAComWrapper https://github.com/TestStack/UIAComWrapper
 Add-Type -Path $PSScriptRoot\Source\lib\*.dll
 # -- a lot of commands have weird names because they're being generated based on pattern names
