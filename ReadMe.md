@@ -11,4 +11,6 @@ The parts that _are_ here do all seem to work, but please feel free to play arou
 
 ## To build
 
-You need [ModuleBuilder](/PoshCode/ModuleBuilder), but you have to run `build.ps1` to generate the code (you'll see a bunch of files show up in Public\Generated), and then it will run `Build-Module` for you. Once you've generated the ps1 files once, you can work from that if you want.
+- You need [ModuleBuilder](/PoshCode/ModuleBuilder), but you have to run `build.ps1` to generate the code (you'll see a bunch of files show up in Public\Generated), and then it will run `Build-Module` for you. Once you've generated the ps1 files once, you can work from that if you want.
+
+- The [Reflection module](https://www.powershellgallery.com/packages/Reflection/4.8/Content/Reflection.psm1) is also a requirement for running `build.ps1`
